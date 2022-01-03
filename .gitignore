@@ -1,12 +1,2 @@
-# Exclude all files 
-*
+# Exclude all files
 **.meta
-
-# Except
-!/.gitignore
-
-!*/
-!/Assets/Scripts/*.cs
-!/Assets/Scripts/NeuralNetwork/*.cs
-!/Assets/Scripts/Helpers/*.cs
-!/Assets/Scripts/ScriptableObjects/*.cs
