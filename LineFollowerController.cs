@@ -55,6 +55,9 @@ namespace unab
         private float I = 0f;
         private float D = 0f;
 
+        private List<float> dataTime;
+        private List<float> dataSpeed;
+
         [Header("HUD Settings")]
         public TextMeshProUGUI lbl_timeValue;
         public TextMeshProUGUI lbl_speedValue;
@@ -65,6 +68,7 @@ namespace unab
         private float m_forwardSpeed = 0f;
         private float m_steeringAngle = 0f;
         private Vector3 m_position;
+        private Quaternion m_rotation;
         private Rigidbody rb;
 
         private NeuralNetwork m_NeuralNetwork;
@@ -72,6 +76,7 @@ namespace unab
         private float[][] m_inputs;
         private float[][] m_outputs;
         private float m_currentTime = 0.0f;
+        private float m_interpolationTime = 0.0f;
         private float m_speedValue = 0.0f;
         private bool m_start = false;
 
@@ -81,7 +86,8 @@ namespace unab
             rb = GetComponent<Rigidbody>();
             rb.centerOfMass = centerOfMass.localPosition;
 
-            m_position = transform.position;            
+            m_position = transform.position;
+            m_rotation = transform.rotation;
             isManual = false;
             isPID = false;
             isNeuralNetwork = false;
@@ -101,7 +107,12 @@ namespace unab
             else
             {
                 Debug.Log("Asset NULL\n");
-            }            
+            }
+
+            Directory.CreateDirectory(Application.dataPath + "/StreamingAssets/Data");
+
+            dataTime = new List<float>();
+            dataSpeed = new List<float>();
         }
 
         // Update is called once per frame
@@ -120,6 +131,7 @@ namespace unab
             {
                 m_currentTime = Time.time;
                 m_speedValue = rb.velocity.magnitude;
+                m_interpolationTime += Time.deltaTime;
 
                 if (isPID)
                 {
@@ -128,6 +140,13 @@ namespace unab
                     Accelerate(torque + pid_value);
 
                     Steering(GetAngle());
+
+                    if (m_interpolationTime > 1.0f)
+                    {
+                        dataSpeed.Add(m_speedValue);
+                        dataTime.Add(m_currentTime);
+                        m_interpolationTime = 0.0f;
+                    }
                 }
                 else if (isManual)
                 {
@@ -169,8 +188,15 @@ namespace unab
                         lbl_outputAccel.text = output[0].ToString();
                         lbl_outputAngle.text = output[1].ToString();
 
-                        Accelerate(output[0]);
+                        Accelerate(output[0] * torque);
                         Steering(output[1] * GetAngle());
+
+                        if (m_interpolationTime > 1.0f)
+                        {
+                            dataSpeed.Add(m_speedValue);
+                            dataTime.Add(m_currentTime);
+                            m_interpolationTime = 0.0f;
+                        }
                     }
                 }
 
@@ -182,7 +208,9 @@ namespace unab
                 m_speedValue = 0f;
                 m_forwardSpeed = 0f;
                 m_steeringAngle = 0f;
+                rb.velocity = Vector3.zero;
                 transform.position = m_position;
+                transform.rotation = m_rotation;
             }
 
             lbl_timeValue.text = m_currentTime.ToString();
@@ -364,15 +392,21 @@ namespace unab
 
         }
 
-        public void OnTriggerEnter(Collider other)
+        public void Reset()
         {
-            if (other.CompareTag("EndRoad"))
-            {
-                isManual = false;
-                isPID = false;
-                isNeuralNetwork = false;
-                m_start = false;
-            }
+            Debug.Log("EndRoad Triggered\n");
+
+            isManual = false;
+            isPID = false;
+            isNeuralNetwork = false;
+            m_start = false;
+            rb.velocity = Vector3.zero;
+
+            transform.position = m_position;
+            transform.rotation = m_rotation;
+
+            SaveData();
+
         }
 
         public float[][] ReadCSV(TextAsset asset)
@@ -419,6 +453,35 @@ namespace unab
             }
 
             return values;
-        }        
+        }
+
+        void SaveData()
+        {
+            DirectoryInfo directory = new DirectoryInfo(Application.dataPath + "/StreamingAssets/Data");
+            FileInfo[] files = directory.GetFiles();
+
+            int lastIndex = 0;
+
+            if (files.Length > 0)
+                int.TryParse(Regex.Match(files[files.Length - 1].ToString(), @"\d+").Value, out lastIndex);
+
+            string path = Application.dataPath + "/StreamingAssets/Data/data_" + (lastIndex + 1).ToString() + ".csv";
+
+            string text = "Time,Speed\n";
+
+            for (int i = 0; i < dataSpeed.Count; i++)
+            {
+                text += dataTime[i].ToString() + "," + dataSpeed[i].ToString() + "\n";
+            }
+
+            using (StreamWriter sw = new StreamWriter(path))
+            {
+                sw.WriteLine(text);
+            }
+
+            dataTime.Clear();
+            dataSpeed.Clear();
+
+        }
     }
 }

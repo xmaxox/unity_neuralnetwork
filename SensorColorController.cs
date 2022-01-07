@@ -32,6 +32,10 @@ namespace unab
 
                 isLineDetected = detectedColor == followedColor;
             }
+            else
+            {
+                isLineDetected = false;
+            }
         }
     }
 }
