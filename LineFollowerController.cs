@@ -162,6 +162,7 @@ namespace unab
                         m_start = false;
                         isNeuralNetwork = false;
                         transform.position = m_position;
+                        transform.rotation = m_rotation;
                     }
                     else
                     {
@@ -180,7 +181,7 @@ namespace unab
 
                         for (int i = 0; i < sensorColorControllers.Count; i++)
                         {
-                            sensor_lecture[i] = sensorColorControllers[i].isLineDetected ? 1.0f : 0.0f;
+                            sensor_lecture[i] = sensorColorControllers[i].isLineDetected ? 0.0f : 1.0f;
                         }
 
                         output = m_NeuralNetwork.FeedForward(sensor_lecture, m_NeuralNetwork.Sigmoid);
